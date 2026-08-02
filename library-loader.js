@@ -6,12 +6,12 @@ const libraryPromise = (async () => {
   ];
 
   for (const url of urls) {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Library could not be loaded: ${url}`);
-    }
-
-    const source = await response.text();
-    (0, eval)(source);
+    await new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = url;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error(`Library could not be loaded: ${url}`));
+      document.head.appendChild(script);
+    });
   }
 })();

@@ -135,7 +135,7 @@ function showValidationResult(message, type) {
   }, 20000);
 }
 
-function handleQrResult(decodedText) {
+async function handleQrResult(decodedText) {
   const key = getSavedSettings().key;
   const result = document.getElementById("result");
 
@@ -173,7 +173,7 @@ function handleQrResult(decodedText) {
     }
 
     const settings = getSavedSettings();
-    const history = getHistory();
+    const history = await getHistory();
     const alreadyScanned = history.some(
       (item) => item.token === decodedText
     );
@@ -183,14 +183,14 @@ function handleQrResult(decodedText) {
       return;
     }
 
+    await saveHistory({ ...payload, token: decodedText });
     showValidationResult(`Event: ${payload.e}\nFullname: ${payload.f}`, "success");
     const cooldownSeconds =
       Number(getSavedSettings().cooldownSeconds) || 0;
     validationCooldownUntil =
       Date.now() + Math.max(0, cooldownSeconds) * 1000;
-    saveHistory({ ...payload, token: decodedText });
-  } catch {
-    showValidationResult("Invalid invitation", "invalid");
+  } catch (error) {
+    showValidationResult(error && error.message ? error.message : "Invalid invitation", "invalid");
   }
 }
 
@@ -201,9 +201,10 @@ const SETTINGS_KEY = "invitation_settings";
 
 function getSavedSettings() {
   try {
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    return { ...settings, historyStorage: settings.historyStorage === "google" ? "google" : "local" };
   } catch {
-    return {};
+    return { historyStorage: "local" };
   }
 }
 
@@ -217,9 +218,30 @@ function loadSettings() {
       : 5;
   document.getElementById("preventDuplicates").checked =
     Boolean(settings.preventDuplicates);
+  const radio = document.querySelector(`input[name="historyStorage"][value="${settings.historyStorage}"]`);
+  if (radio) radio.checked = true;
+  updateGoogleStatus(settings);
 }
 
-function saveSettings() {
+function setSettingsNotice(message, type = "") {
+  const notice = document.getElementById("settingsNotice");
+  notice.textContent = message;
+  notice.className = type;
+}
+
+function updateGoogleStatus(settings = getSavedSettings(), error = "") {
+  const status = document.getElementById("googleStorageStatus");
+  if (error) { status.textContent = error; status.className = "storage-status error"; return; }
+  if (settings.historyStorage === "google" && settings.spreadsheetId) {
+    status.textContent = `Connected: ${settings.spreadsheetName || settings.spreadsheetId}`;
+    status.className = "storage-status success";
+  } else {
+    status.textContent = settings.historyStorage === "google" ? "Google Sheet will be selected when you save" : "Stored on this device";
+    status.className = "storage-status";
+  }
+}
+
+async function saveSettings() {
   const key = document.getElementById("shared_key").value;
   const eventName = document.getElementById("event_name").value;
   const cooldownSeconds = Math.max(
@@ -228,6 +250,22 @@ function saveSettings() {
   );
   const preventDuplicates =
     document.getElementById("preventDuplicates").checked;
+  const historyStorage = document.querySelector('input[name="historyStorage"]:checked').value;
+  const previous = getSavedSettings();
+  let googleTarget = {};
+
+  if (historyStorage === "google") {
+    try {
+      setSettingsNotice("Connecting to Google…");
+      googleTarget = await GoogleHistoryStorage.pickSpreadsheet(GOOGLE_STORAGE_CONFIG);
+      await GoogleHistoryStorage.ensureHistorySheet(GOOGLE_STORAGE_CONFIG, googleTarget.spreadsheetId);
+    } catch (error) {
+      const message = error && error.name === "AbortError" ? "Google file selection was cancelled. Previous settings were kept." : `Google setup failed: ${error.message}. Previous settings were kept.`;
+      setSettingsNotice(message, "error");
+      updateGoogleStatus(previous, message);
+      return false;
+    }
+  }
 
   localStorage.setItem(
     SETTINGS_KEY,
@@ -235,16 +273,19 @@ function saveSettings() {
       key,
       eventName,
       cooldownSeconds,
-      preventDuplicates
+      preventDuplicates,
+      historyStorage,
+      ...(historyStorage === "google" ? googleTarget : {})
     })
   );
 
-  const notice = document.getElementById("settingsNotice");
-  notice.textContent = "Saved";
+  setSettingsNotice("Saved", "success");
+  updateGoogleStatus(getSavedSettings());
 
   setTimeout(() => {
-    notice.textContent = "";
+    setSettingsNotice("");
   }, 2000);
+  return true;
 }
 
 function clearSettings() {
@@ -257,7 +298,9 @@ function clearSettings() {
   document.getElementById("event_name").value = "";
   document.getElementById("cooldown_seconds").value = "5";
   document.getElementById("preventDuplicates").checked = false;
+  document.querySelector('input[name="historyStorage"][value="local"]').checked = true;
   document.getElementById("settingsNotice").textContent = "";
+  updateGoogleStatus({ historyStorage: "local" });
 }
 
 document.getElementById("saveSettingsBtn")
@@ -268,9 +311,27 @@ document.getElementById("clearSettingsBtn")
 
 loadSettings();
 
+document.querySelectorAll('input[name="historyStorage"]').forEach((radio) => {
+  radio.addEventListener("change", () => updateGoogleStatus({
+    ...getSavedSettings(),
+    historyStorage: radio.value,
+    spreadsheetId: radio.value === "google" ? getSavedSettings().spreadsheetId : undefined
+  }));
+});
+
+// Prepare GIS, Picker, Drive and Sheets clients without initiating a login.
+GoogleHistoryStorage.initialize(GOOGLE_STORAGE_CONFIG).catch(() => {
+  // Configuration/load failures are reported if Google storage is selected.
+});
+
 const HISTORY_KEY = "invitation_history";
 
 function getHistory() {
+  const settings = getSavedSettings();
+  if (settings.historyStorage === "google") {
+    if (!settings.spreadsheetId) return Promise.reject(new Error("Select a Google Sheet in Settings first."));
+    return GoogleHistoryStorage.read(GOOGLE_STORAGE_CONFIG, settings.spreadsheetId);
+  }
   try {
     return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
   } catch {
@@ -278,17 +339,25 @@ function getHistory() {
   }
 }
 
-function saveHistory(payload) {
-  const history = getHistory();
-
-  history.unshift({
+async function saveHistory(payload) {
+  const settings = getSavedSettings();
+  const item = {
     token: payload.token,
     e: payload.e,
     f: payload.f,
     scannedAt: new Date().toISOString()
-  });
+  };
+  if (settings.historyStorage === "google") {
+    if (!settings.spreadsheetId) throw new Error("Select a Google Sheet in Settings first.");
+    await GoogleHistoryStorage.append(GOOGLE_STORAGE_CONFIG, settings.spreadsheetId, item);
+    return item;
+  }
+  const history = getHistory();
+
+  history.unshift(item);
 
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  return item;
 }
 
 function formatLocalTimestamp(isoString) {
@@ -306,9 +375,13 @@ function formatLocalTimestamp(isoString) {
   ].join(":");
 }
 
-function renderHistory() {
+async function renderHistory() {
   const historyList = document.getElementById("historyList");
-  const history = getHistory();
+  historyList.textContent = "Loading history…";
+  let history;
+  try { history = await getHistory(); }
+  catch (error) { historyList.textContent = `History unavailable: ${error.message}`; historyList.className = "error"; return; }
+  historyList.className = "";
 
   if (history.length === 0) {
     historyList.textContent = "No history";
@@ -326,13 +399,21 @@ function renderHistory() {
   });
 }
 
-function clearHistory() {
+async function clearHistory() {
   if (!confirm("Clear all history?")) {
     return;
   }
 
-  localStorage.removeItem(HISTORY_KEY);
-  renderHistory();
+  const settings = getSavedSettings();
+  try {
+    if (settings.historyStorage === "google") await GoogleHistoryStorage.clear(GOOGLE_STORAGE_CONFIG, settings.spreadsheetId);
+    else localStorage.removeItem(HISTORY_KEY);
+    await renderHistory();
+  } catch (error) {
+    const historyList = document.getElementById("historyList");
+    historyList.textContent = `History could not be cleared: ${error.message}`;
+    historyList.className = "error";
+  }
 }
 
 function escapeCsv(value) {
@@ -340,8 +421,11 @@ function escapeCsv(value) {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
-function exportHistory() {
-  const history = getHistory();
+async function exportHistory() {
+  const historyList = document.getElementById("historyList");
+  let history;
+  try { history = await getHistory(); }
+  catch (error) { historyList.textContent = `Export failed: ${error.message}`; historyList.className = "error"; return; }
 
   if (history.length === 0) {
     return;
