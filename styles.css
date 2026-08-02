@@ -4,21 +4,42 @@ body {
 }
 
 nav {
-  display: flex;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
   width: 100%;
 }
 
 nav button {
-  flex: 1;
+  position: absolute;
+  top: 0;
+  width: 25%;
   min-height: 44px;
   font-size: 16px;
 }
 
+nav button:nth-child(1) {
+  left: 0;
+}
+
+nav button:nth-child(2) {
+  left: 25%;
+}
+
+nav button:nth-child(3) {
+  left: 50%;
+}
+
+nav button:nth-child(4) {
+  left: 75%;
+}
+
 .tab-content {
-  min-height: calc(100vh - 44px);
+  min-height: 100vh;
   display: none;
   box-sizing: border-box;
-  padding: 16px;
+  padding: 60px 16px 16px;
 }
 
 .tab-content.active {
