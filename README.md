@@ -52,3 +52,4 @@ development where supported).
 
 The public privacy policy is available at `/privacy.html`. Keep its statements
 and effective date in sync with any changes to the application's data handling.
+The public Terms of Service are available at `/terms.html`.
