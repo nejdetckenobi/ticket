@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <title>Privacy Policy — Invitation Ticket</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="legal-page">
+  <main>
+    <h1>Privacy Policy</h1>
+    <p><strong>Effective date:</strong> August 2, 2026</p>
+
+    <p>
+      Invitation Ticket (the “Application”) creates and validates invitation
+      QR codes. This Privacy Policy explains what information the Application
+      processes, why it is processed, where it is stored, and the choices
+      available to users.
+    </p>
+
+    <h2>Information processed by the Application</h2>
+    <p>The Application may process the following information:</p>
+    <ul>
+      <li>
+        Event and invitation information, including an event name, an
+        invitee’s full name, and a cryptographic invitation token.
+      </li>
+      <li>
+        Validation records, including the event name, invitee’s full name,
+        validation timestamp, and invitation token.
+      </li>
+      <li>
+        Application settings, including the shared validation key, validation
+        cooldown, duplicate-prevention preference, storage preference, and the
+        identifier and name of a selected Google spreadsheet.
+      </li>
+      <li>
+        Camera frames used to detect QR codes. Frames are processed locally in
+        the browser and are not uploaded or retained by the Application.
+      </li>
+    </ul>
+
+    <h2>How information is used</h2>
+    <p>Information is used only to:</p>
+    <ul>
+      <li>Create signed invitation QR codes.</li>
+      <li>Verify that scanned invitations have a valid signature.</li>
+      <li>Display and export validation history on the user’s device.</li>
+      <li>Prevent duplicate validation when that option is enabled.</li>
+      <li>
+        Append successful validation records to a Google spreadsheet selected
+        by the user when Google storage is enabled.
+      </li>
+    </ul>
+
+    <h2>Local storage</h2>
+    <p>
+      By default, settings and validation history are stored in the browser’s
+      local storage on the user’s device. The Application does not operate its
+      own server-side database. Local information remains until the user clears
+      settings or history in the Application, clears browser storage, or
+      removes the Application’s site data.
+    </p>
+
+    <h2>Google Drive and Google Sheets access</h2>
+    <p>
+      Google integration is optional. When a user chooses Google storage, the
+      Application requests permission through Google OAuth and displays Google
+      Picker. The Application uses the
+      <code>https://www.googleapis.com/auth/drive.file</code> scope, which
+      limits access to files the user opens or selects for use with the
+      Application.
+    </p>
+    <p>
+      The Application accesses only the Google Sheets file selected by the
+      user. It reads the selected spreadsheet’s worksheet metadata and header
+      row, and writes the event name, invitee’s full name, and validation time
+      to the first worksheet. The Application does not sell Google user data,
+      use it for advertising, or transfer it to unrelated third parties.
+    </p>
+    <p>
+      Google OAuth access tokens are held only in browser memory and are not
+      stored in local storage or by an Application backend. The selected
+      spreadsheet’s identifier and name are stored locally so the Application
+      can display the selection on the user’s device. Users must reconnect to
+      Google after the page is reloaded before new records can be written.
+    </p>
+    <p>
+      The Application’s use and transfer of information received from Google
+      APIs adheres to the
+      <a href="https://developers.google.com/terms/api-services-user-data-policy">
+        Google API Services User Data Policy
+      </a>, including the Limited Use requirements.
+    </p>
+
+    <h2>Sharing and service providers</h2>
+    <p>
+      The Application does not sell personal information. Information is sent
+      to Google only when the user enables Google storage and authorizes a
+      selected spreadsheet. The Application is hosted by Netlify and loads
+      browser libraries from jsDelivr and Google. Those providers may process
+      standard technical request information, such as IP addresses, user-agent
+      details, and request timestamps, under their own privacy policies.
+    </p>
+    <p>
+      QR images and their contents may be shared by the user using the device’s
+      share or download features. Any subsequent handling of a shared QR code
+      is controlled by the sender and recipient, not by the Application.
+    </p>
+
+    <h2>Retention and deletion</h2>
+    <ul>
+      <li>
+        Use <strong>Clear</strong> in Settings to remove locally saved settings
+        and the selected spreadsheet reference.
+      </li>
+      <li>
+        Use <strong>Clear history</strong> to remove local validation records.
+      </li>
+      <li>
+        Delete rows directly in Google Sheets to remove records written to the
+        selected spreadsheet.
+      </li>
+      <li>
+        Revoke the Application’s Google access from the
+        <a href="https://myaccount.google.com/connections">
+          Google Account connections page
+        </a>.
+      </li>
+    </ul>
+
+    <h2>Security and user responsibilities</h2>
+    <p>
+      The Application uses a shared cryptographic key supplied by the user to
+      sign and validate invitations. Users and event organizers are responsible
+      for protecting that key, controlling access to their devices and Google
+      spreadsheets, and ensuring that they have an appropriate basis for
+      processing invitees’ personal information. No method of storage or
+      transmission can be guaranteed to be completely secure.
+    </p>
+
+    <h2>Children’s privacy</h2>
+    <p>
+      The Application is not directed to children and does not knowingly
+      collect children’s personal information through an operator-controlled
+      service. Event organizers are responsible for obtaining any consent
+      required before entering or processing information about minors.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      This policy may be updated when the Application’s features or data
+      practices change. The effective date at the top of this page will be
+      updated when changes are published.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      For privacy questions or requests, contact the project maintainer through
+      the
+      <a href="https://github.com/nejdetckenobi/ticket/issues">
+        Invitation Ticket GitHub issue tracker
+      </a>.
+    </p>
+
+    <p><a href="./">Return to Invitation Ticket</a></p>
+  </main>
+</body>
+</html>

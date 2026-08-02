@@ -172,6 +172,40 @@ nav button:nth-child(4) {
   margin-top: 8px;
 }
 
+#legalLinks {
+  text-align: center;
+}
+
+.legal-page {
+  color: #1f1f1f;
+  background: #fff;
+  line-height: 1.55;
+}
+
+.legal-page main {
+  box-sizing: border-box;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.legal-page h1,
+.legal-page h2 {
+  line-height: 1.25;
+}
+
+.legal-page h2 {
+  margin-top: 32px;
+}
+
+.legal-page a {
+  overflow-wrap: anywhere;
+}
+
+.legal-page code {
+  overflow-wrap: anywhere;
+}
+
 #tab3 {
   position: relative;
   padding-bottom: 124px;

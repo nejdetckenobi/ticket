@@ -47,3 +47,6 @@ The first worksheet receives `event`, `full_name`, and `scanned_at` columns.
 Camera access, Google authorization, and Google Picker require the deployed app
 to be served from an authorized HTTPS origin (localhost may be used during
 development where supported).
+
+The public privacy policy is available at `/privacy.html`. Keep its statements
+and effective date in sync with any changes to the application's data handling.
