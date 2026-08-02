@@ -49,6 +49,19 @@ function createHmacSignature(keyText, message) {
     .replace(/\//g, "_");
 }
 
+function canvasToBlob(canvas, type = "image/png") {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+        return;
+      }
+
+      reject(new Error("QR image could not be created."));
+    }, type);
+  });
+}
+
 async function generateInvitation() {
   await libraryPromise;
   const settings = getSavedSettings();
@@ -76,15 +89,15 @@ async function generateInvitation() {
   const invitationText = `${signingInput}.${signature}`;
 
   try {
-    const qr = new QRious({
+    const canvas = document.createElement("canvas");
+    new QRious({
+      element: canvas,
       value: invitationText,
       size: 800,
       level: "M"
     });
 
-    const dataUrl = qr.toDataURL("image/png");
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
+    const blob = await canvasToBlob(canvas);
     const file = new File([blob], "invitation.png", {
       type: "image/png"
     });
