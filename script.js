@@ -597,6 +597,8 @@ function loadSettings() {
       : 5;
   document.getElementById("preventDuplicates").checked =
     Boolean(settings.preventDuplicates);
+  document.getElementById("darkMode").checked = Boolean(settings.darkMode);
+  window.applyTicketTokenTheme(Boolean(settings.darkMode));
   const storageType = settings.storageType === "google" ? "google" : "local";
   document.querySelector(
     `input[name="storageType"][value="${storageType}"]`
@@ -646,6 +648,7 @@ function saveSettings() {
   );
   const preventDuplicates =
     document.getElementById("preventDuplicates").checked;
+  const darkMode = document.getElementById("darkMode").checked;
   const storageType = getSelectedStorageType();
   const savedSettings = getSavedSettings();
 
@@ -656,6 +659,7 @@ function saveSettings() {
       eventName,
       cooldownSeconds,
       preventDuplicates,
+      darkMode,
       storageType,
       googleSpreadsheetId: savedSettings.googleSpreadsheetId || "",
       googleSpreadsheetName: savedSettings.googleSpreadsheetName || ""
@@ -680,6 +684,8 @@ function clearSettings() {
   document.getElementById("event_name").value = "";
   document.getElementById("cooldown_seconds").value = "5";
   document.getElementById("preventDuplicates").checked = false;
+  document.getElementById("darkMode").checked = false;
+  window.applyTicketTokenTheme(false);
   document.querySelector(
     'input[name="storageType"][value="local"]'
   ).checked = true;
@@ -697,6 +703,11 @@ document.getElementById("clearSettingsBtn")
 
 document.querySelectorAll('input[name="storageType"]')
   .forEach((input) => input.addEventListener("change", updateGoogleStorageUi));
+
+document.getElementById("darkMode")
+  .addEventListener("change", (event) => {
+    window.applyTicketTokenTheme(event.target.checked);
+  });
 
 document.getElementById("selectGoogleSpreadsheetBtn")
   .addEventListener("click", selectGoogleSpreadsheet);
