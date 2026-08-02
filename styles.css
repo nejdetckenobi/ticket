@@ -75,6 +75,22 @@ nav button:nth-child(4) {
   margin-bottom: 0;
 }
 
+#appIntroduction {
+  max-width: 640px;
+  margin: 0 auto 24px;
+  text-align: center;
+}
+
+#appIntroduction h1 {
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+
+#appIntroduction p {
+  margin: 0;
+  line-height: 1.5;
+}
+
 #storageSetting {
   display: flex;
   justify-content: center;
