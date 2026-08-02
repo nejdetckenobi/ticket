@@ -75,9 +75,13 @@
     <p>
       The Application accesses only the Google Sheets file selected by the
       user. It reads the selected spreadsheet’s worksheet metadata and header
-      row, and writes the event name, invitee’s full name, and validation time
-      to the first worksheet. The Application does not sell Google user data,
-      use it for advertising, or transfer it to unrelated third parties.
+      row and validation records. It writes the event name, invitee’s full name,
+      validation time, and cryptographic invitation token to the first
+      worksheet. When Google storage and duplicate prevention are enabled, it
+      reads existing validation rows from that worksheet to determine whether
+      the invitation token was already validated. The Application does not sell
+      Google user data, use it for advertising, or transfer it to unrelated
+      third parties.
     </p>
     <p>
       Google OAuth access tokens are held only in browser memory and are not

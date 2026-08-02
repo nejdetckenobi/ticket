@@ -382,7 +382,7 @@ function quoteSheetTitle(title) {
   return `'${title.replace(/'/g, "''")}'`;
 }
 
-async function appendValidationToGoogleSheet(settings, record) {
+async function getGoogleSheetContext(settings) {
   if (!settings.googleSpreadsheetId) {
     throw new Error("Select a Google spreadsheet in Settings.");
   }
@@ -400,9 +400,36 @@ async function appendValidationToGoogleSheet(settings, record) {
   }
 
   const sheetTitle = quoteSheetTitle(sheet.properties.title);
-  const headerRange = encodeURIComponent(`${sheetTitle}!A1:C1`);
   const valuesBase =
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/`;
+
+  return { sheetTitle, valuesBase };
+}
+
+async function getGoogleSheetValidationRows(context) {
+  const dataRange = encodeURIComponent(`${context.sheetTitle}!A2:D`);
+  const data = await googleApiFetch(context.valuesBase + dataRange);
+  return data.values || [];
+}
+
+function isDuplicateGoogleValidation(rows, record) {
+  return rows.some((row) => {
+    const savedToken = String(row[3] || "");
+
+    if (savedToken) {
+      return savedToken === record.token;
+    }
+
+    // Rows created before the token column existed are matched by their
+    // deterministic invitation payload.
+    return row[0] === record.e && row[1] === record.f;
+  });
+}
+
+async function appendValidationToGoogleSheet(settings, record, context) {
+  const sheetContext = context || await getGoogleSheetContext(settings);
+  const headerRange = encodeURIComponent(`${sheetContext.sheetTitle}!A1:D1`);
+  const { valuesBase } = sheetContext;
   const header = await googleApiFetch(valuesBase + headerRange);
   const firstRow = header.values?.[0] || [];
 
@@ -413,13 +440,27 @@ async function appendValidationToGoogleSheet(settings, record) {
         method: "PUT",
         body: JSON.stringify({
           majorDimension: "ROWS",
-          values: [["event", "full_name", "scanned_at"]]
+          values: [["event", "full_name", "scanned_at", "token"]]
+        })
+      }
+    );
+  } else if (!String(firstRow[3] || "").trim()) {
+    const tokenHeaderRange = encodeURIComponent(
+      `${sheetContext.sheetTitle}!D1`
+    );
+    await googleApiFetch(
+      `${valuesBase}${tokenHeaderRange}?valueInputOption=RAW`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          majorDimension: "ROWS",
+          values: [["token"]]
         })
       }
     );
   }
 
-  const appendRange = encodeURIComponent(`${sheetTitle}!A:C`);
+  const appendRange = encodeURIComponent(`${sheetContext.sheetTitle}!A:D`);
   await googleApiFetch(
     `${valuesBase}${appendRange}:append` +
       "?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
@@ -427,7 +468,7 @@ async function appendValidationToGoogleSheet(settings, record) {
       method: "POST",
       body: JSON.stringify({
         majorDimension: "ROWS",
-        values: [[record.e, record.f, record.scannedAt]]
+        values: [[record.e, record.f, record.scannedAt, record.token]]
       })
     }
   );
@@ -435,7 +476,6 @@ async function appendValidationToGoogleSheet(settings, record) {
 
 async function handleQrResult(decodedText) {
   const key = getSavedSettings().key;
-  const result = document.getElementById("result");
 
   if (!key) {
     showValidationResult("Enter a key.", "invalid");
@@ -471,14 +511,39 @@ async function handleQrResult(decodedText) {
     }
 
     const settings = getSavedSettings();
-    const history = getHistory();
-    const alreadyScanned = history.some(
-      (item) => item.token === decodedText
-    );
+    let googleSheetContext = null;
 
-    if (settings.preventDuplicates && alreadyScanned) {
-      showValidationResult("Invitation already validated", "duplicate");
-      return;
+    if (settings.preventDuplicates) {
+      if (settings.storageType === "google") {
+        try {
+          googleSheetContext = await getGoogleSheetContext(settings);
+          const rows = await getGoogleSheetValidationRows(googleSheetContext);
+          const alreadyScanned = isDuplicateGoogleValidation(rows, {
+            ...payload,
+            token: decodedText
+          });
+
+          if (alreadyScanned) {
+            showValidationResult("Invitation already validated", "duplicate");
+            return;
+          }
+        } catch (error) {
+          showValidationResult(
+            `Duplicate check failed: ${error.message}\nInvitation was not validated.`,
+            "warning"
+          );
+          return;
+        }
+      } else {
+        const alreadyScanned = getHistory().some(
+          (item) => item.token === decodedText
+        );
+
+        if (alreadyScanned) {
+          showValidationResult("Invitation already validated", "duplicate");
+          return;
+        }
+      }
     }
 
     const successMessage = `Event: ${payload.e}\nFullname: ${payload.f}`;
@@ -494,8 +559,9 @@ async function handleQrResult(decodedText) {
       try {
         await appendValidationToGoogleSheet(settings, {
           ...payload,
-          scannedAt
-        });
+          scannedAt,
+          token: decodedText
+        }, googleSheetContext);
       } catch (error) {
         showValidationResult(
           `${successMessage}\nValidated, but could not save to Google: ${error.message}`,

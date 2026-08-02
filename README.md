@@ -42,7 +42,9 @@ to local storage.
 
 The app requests the `drive.file` OAuth scope. Users must select a native
 Google Sheets file through the picker; uploaded `.xlsx` files are not accepted.
-The first worksheet receives `event`, `full_name`, and `scanned_at` columns.
+The first worksheet receives `event`, `full_name`, `scanned_at`, and `token`
+columns. When Google storage and duplicate prevention are enabled, that token
+column is used for cross-device duplicate checks.
 
 Camera access, Google authorization, and Google Picker require the deployed app
 to be served from an authorized HTTPS origin (localhost may be used during
