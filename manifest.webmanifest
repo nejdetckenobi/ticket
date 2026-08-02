@@ -1,6 +1,6 @@
 {
-  "name": "Invitation Ticket",
-  "short_name": "Ticket",
+  "name": "TicketToken",
+  "short_name": "TicketToken",
   "description": "Generate and validate event invitations.",
   "start_url": "./",
   "scope": "./",
