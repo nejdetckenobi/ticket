@@ -13,8 +13,27 @@ successful validations to a user-selected Google Sheets spreadsheet.
    deployed HTTPS origin to its authorized JavaScript origins.
 5. Create an API key and restrict it to the deployed website origins and the
    Google Picker API.
-6. Copy the OAuth Client ID, API key, and numeric Cloud project number into
-   `google-config.js` as `googleClientId`, `googleApiKey`, and `googleAppId`.
+6. Configure the OAuth Client ID, API key, and numeric Cloud project number as
+   described below.
+
+### Netlify deployment
+
+Add these environment variables in **Project configuration > Environment
+variables** and make them available to the **Builds** scope:
+
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_API_KEY`
+- `GOOGLE_APP_ID`
+
+The build command in `netlify.toml` generates `google-config.js` from those
+values before Netlify publishes the site. The generated file is ignored by Git
+and must not be committed. A deployment fails early when any value is missing.
+
+### Local development
+
+Copy `google-config.example.js` to `google-config.js` and fill in the local
+values. Because `google-config.js` is ignored by Git, those values remain only
+on the local machine.
 
 These values identify a browser application and are not server-side secrets.
 Their origin and API restrictions are still required to prevent unauthorized
