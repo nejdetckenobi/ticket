@@ -148,7 +148,292 @@ function showValidationResult(message, type) {
   }, 20000);
 }
 
-function handleQrResult(decodedText) {
+const GOOGLE_DRIVE_FILE_SCOPE =
+  "https://www.googleapis.com/auth/drive.file";
+const GOOGLE_SHEETS_MIME_TYPE =
+  "application/vnd.google-apps.spreadsheet";
+const GOOGLE_API_TIMEOUT_MS = 15000;
+
+let googleAccessToken = null;
+let googleAccessTokenExpiresAt = 0;
+let googlePickerPromise = null;
+
+function getGoogleConfig() {
+  return window.INVITATION_CONFIG || {};
+}
+
+function assertGoogleConfig() {
+  const config = getGoogleConfig();
+
+  if (
+    !config.googleClientId ||
+    !config.googleApiKey ||
+    !config.googleAppId
+  ) {
+    throw new Error("Google integration is not configured.");
+  }
+
+  return config;
+}
+
+function waitForGoogleGlobal(predicate, errorMessage) {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      if (predicate()) {
+        clearInterval(timer);
+        resolve();
+        return;
+      }
+
+      if (Date.now() - startedAt >= GOOGLE_API_TIMEOUT_MS) {
+        clearInterval(timer);
+        reject(new Error(errorMessage));
+      }
+    }, 50);
+  });
+}
+
+async function loadGooglePicker() {
+  assertGoogleConfig();
+
+  await Promise.all([
+    waitForGoogleGlobal(
+      () => Boolean(window.google?.accounts?.oauth2),
+      "Google sign-in could not be loaded."
+    ),
+    waitForGoogleGlobal(
+      () => Boolean(window.gapi?.load),
+      "Google Picker could not be loaded."
+    )
+  ]);
+
+  if (!googlePickerPromise) {
+    googlePickerPromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("Google Picker could not be loaded."));
+      }, GOOGLE_API_TIMEOUT_MS);
+
+      window.gapi.load("picker", {
+        callback: () => {
+          clearTimeout(timeout);
+          resolve();
+        },
+        onerror: () => {
+          clearTimeout(timeout);
+          reject(new Error("Google Picker could not be loaded."));
+        }
+      });
+    });
+  }
+
+  return googlePickerPromise;
+}
+
+async function requestGoogleAccessToken() {
+  const config = assertGoogleConfig();
+  await loadGooglePicker();
+
+  return new Promise((resolve, reject) => {
+    const handleError = () => {
+      reject(new Error("Google authorization was cancelled."));
+    };
+
+    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: config.googleClientId,
+      scope: GOOGLE_DRIVE_FILE_SCOPE,
+      error_callback: handleError,
+      callback: (response) => {
+        if (!response?.access_token) {
+          reject(new Error(
+            response?.error_description || "Google authorization failed."
+          ));
+          return;
+        }
+
+        googleAccessToken = response.access_token;
+        googleAccessTokenExpiresAt =
+          Date.now() + Math.max(0, Number(response.expires_in) - 60) * 1000;
+        resolve(googleAccessToken);
+      }
+    });
+
+    tokenClient.requestAccessToken({ prompt: "" });
+  });
+}
+
+function openGoogleSpreadsheetPicker(accessToken) {
+  const config = assertGoogleConfig();
+
+  return new Promise((resolve, reject) => {
+    const view = new window.google.picker.DocsView(
+      window.google.picker.ViewId.SPREADSHEETS
+    )
+      .setIncludeFolders(false)
+      .setSelectFolderEnabled(false)
+      .setMimeTypes(GOOGLE_SHEETS_MIME_TYPE);
+
+    const picker = new window.google.picker.PickerBuilder()
+      .setAppId(config.googleAppId)
+      .setDeveloperKey(config.googleApiKey)
+      .setOAuthToken(accessToken)
+      .addView(view)
+      .setCallback((data) => {
+        if (data.action === window.google.picker.Action.PICKED) {
+          const document = data.docs?.[0];
+          if (!document?.id) {
+            reject(new Error("No spreadsheet was selected."));
+            return;
+          }
+
+          resolve({ id: document.id, name: document.name || document.id });
+        } else if (data.action === window.google.picker.Action.CANCEL) {
+          reject(new DOMException("Selection cancelled.", "AbortError"));
+        }
+      })
+      .build();
+
+    picker.setVisible(true);
+  });
+}
+
+async function selectGoogleSpreadsheet() {
+  const button = document.getElementById("selectGoogleSpreadsheetBtn");
+  const status = document.getElementById("googleSpreadsheetStatus");
+  button.disabled = true;
+  status.className = "";
+  status.textContent = "Connecting to Google...";
+
+  try {
+    const token = await requestGoogleAccessToken();
+    const spreadsheet = await openGoogleSpreadsheetPicker(token);
+    const settings = getSavedSettings();
+
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      ...settings,
+      storageType: "google",
+      googleSpreadsheetId: spreadsheet.id,
+      googleSpreadsheetName: spreadsheet.name
+    }));
+
+    document.querySelector(
+      'input[name="storageType"][value="google"]'
+    ).checked = true;
+    updateGoogleStorageUi();
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      status.className = "error";
+      status.textContent = error.message;
+    }
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function googleApiFetch(url, options = {}) {
+  if (
+    !googleAccessToken ||
+    Date.now() >= googleAccessTokenExpiresAt
+  ) {
+    googleAccessToken = null;
+    throw new Error("Reconnect Google from Settings.");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    GOOGLE_API_TIMEOUT_MS
+  );
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${googleAccessToken}`,
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+
+    if (!response.ok) {
+      let message = `Google API request failed (${response.status}).`;
+      try {
+        const body = await response.json();
+        message = body.error?.message || message;
+      } catch {
+        // Keep the status-based error when Google returns a non-JSON body.
+      }
+      throw new Error(message);
+    }
+
+    return response.status === 204 ? null : response.json();
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Google API request timed out.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function quoteSheetTitle(title) {
+  return `'${title.replace(/'/g, "''")}'`;
+}
+
+async function appendValidationToGoogleSheet(settings, record) {
+  if (!settings.googleSpreadsheetId) {
+    throw new Error("Select a Google spreadsheet in Settings.");
+  }
+
+  const spreadsheetId = encodeURIComponent(settings.googleSpreadsheetId);
+  const metadata = await googleApiFetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}` +
+      "?fields=sheets.properties(title%2Cindex)"
+  );
+  const sheet = [...(metadata.sheets || [])]
+    .sort((a, b) => a.properties.index - b.properties.index)[0];
+
+  if (!sheet?.properties?.title) {
+    throw new Error("The spreadsheet has no worksheet.");
+  }
+
+  const sheetTitle = quoteSheetTitle(sheet.properties.title);
+  const headerRange = encodeURIComponent(`${sheetTitle}!A1:C1`);
+  const valuesBase =
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/`;
+  const header = await googleApiFetch(valuesBase + headerRange);
+  const firstRow = header.values?.[0] || [];
+
+  if (firstRow.every((value) => String(value).trim() === "")) {
+    await googleApiFetch(
+      `${valuesBase}${headerRange}?valueInputOption=RAW`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          majorDimension: "ROWS",
+          values: [["event", "full_name", "scanned_at"]]
+        })
+      }
+    );
+  }
+
+  const appendRange = encodeURIComponent(`${sheetTitle}!A:C`);
+  await googleApiFetch(
+    `${valuesBase}${appendRange}:append` +
+      "?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        majorDimension: "ROWS",
+        values: [[record.e, record.f, record.scannedAt]]
+      })
+    }
+  );
+}
+
+async function handleQrResult(decodedText) {
   const key = getSavedSettings().key;
   const result = document.getElementById("result");
 
@@ -196,12 +481,28 @@ function handleQrResult(decodedText) {
       return;
     }
 
-    showValidationResult(`Event: ${payload.e}\nFullname: ${payload.f}`, "success");
+    const successMessage = `Event: ${payload.e}\nFullname: ${payload.f}`;
+    const scannedAt = new Date().toISOString();
+    showValidationResult(successMessage, "success");
     const cooldownSeconds =
       Number(getSavedSettings().cooldownSeconds) || 0;
     validationCooldownUntil =
       Date.now() + Math.max(0, cooldownSeconds) * 1000;
-    saveHistory({ ...payload, token: decodedText });
+    saveHistory({ ...payload, token: decodedText, scannedAt });
+
+    if (settings.storageType === "google") {
+      try {
+        await appendValidationToGoogleSheet(settings, {
+          ...payload,
+          scannedAt
+        });
+      } catch (error) {
+        showValidationResult(
+          `${successMessage}\nValidated, but could not save to Google: ${error.message}`,
+          "warning"
+        );
+      }
+    }
   } catch {
     showValidationResult("Invalid invitation", "invalid");
   }
@@ -230,6 +531,44 @@ function loadSettings() {
       : 5;
   document.getElementById("preventDuplicates").checked =
     Boolean(settings.preventDuplicates);
+  const storageType = settings.storageType === "google" ? "google" : "local";
+  document.querySelector(
+    `input[name="storageType"][value="${storageType}"]`
+  ).checked = true;
+  updateGoogleStorageUi();
+}
+
+function getSelectedStorageType() {
+  return document.querySelector('input[name="storageType"]:checked')
+    ?.value === "google" ? "google" : "local";
+}
+
+function updateGoogleStorageUi() {
+  const settings = getSavedSettings();
+  const isGoogle = getSelectedStorageType() === "google";
+  const container = document.getElementById("googleStorageSettings");
+  const status = document.getElementById("googleSpreadsheetStatus");
+
+  container.hidden = !isGoogle;
+  if (!isGoogle) return;
+
+  status.className = "";
+  const config = getGoogleConfig();
+  if (
+    !config.googleClientId ||
+    !config.googleApiKey ||
+    !config.googleAppId
+  ) {
+    status.className = "error";
+    status.textContent = "Google integration is not configured.";
+  } else if (!settings.googleSpreadsheetId) {
+    status.textContent = "No spreadsheet selected.";
+  } else if (!googleAccessToken) {
+    status.textContent =
+      `Selected: ${settings.googleSpreadsheetName}\nReconnect Google to write.`;
+  } else {
+    status.textContent = `Selected: ${settings.googleSpreadsheetName}`;
+  }
 }
 
 function saveSettings() {
@@ -241,6 +580,8 @@ function saveSettings() {
   );
   const preventDuplicates =
     document.getElementById("preventDuplicates").checked;
+  const storageType = getSelectedStorageType();
+  const savedSettings = getSavedSettings();
 
   localStorage.setItem(
     SETTINGS_KEY,
@@ -248,7 +589,10 @@ function saveSettings() {
       key,
       eventName,
       cooldownSeconds,
-      preventDuplicates
+      preventDuplicates,
+      storageType,
+      googleSpreadsheetId: savedSettings.googleSpreadsheetId || "",
+      googleSpreadsheetName: savedSettings.googleSpreadsheetName || ""
     })
   );
 
@@ -270,6 +614,12 @@ function clearSettings() {
   document.getElementById("event_name").value = "";
   document.getElementById("cooldown_seconds").value = "5";
   document.getElementById("preventDuplicates").checked = false;
+  document.querySelector(
+    'input[name="storageType"][value="local"]'
+  ).checked = true;
+  googleAccessToken = null;
+  googleAccessTokenExpiresAt = 0;
+  updateGoogleStorageUi();
   document.getElementById("settingsNotice").textContent = "";
 }
 
@@ -278,6 +628,12 @@ document.getElementById("saveSettingsBtn")
 
 document.getElementById("clearSettingsBtn")
   .addEventListener("click", clearSettings);
+
+document.querySelectorAll('input[name="storageType"]')
+  .forEach((input) => input.addEventListener("change", updateGoogleStorageUi));
+
+document.getElementById("selectGoogleSpreadsheetBtn")
+  .addEventListener("click", selectGoogleSpreadsheet);
 
 loadSettings();
 
@@ -298,7 +654,7 @@ function saveHistory(payload) {
     token: payload.token,
     e: payload.e,
     f: payload.f,
-    scannedAt: new Date().toISOString()
+    scannedAt: payload.scannedAt || new Date().toISOString()
   });
 
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
@@ -406,6 +762,7 @@ let scanning = false;
 let lastVisibleQr = null;
 let resultClearTimer = null;
 let validationCooldownUntil = 0;
+let validationInProgress = false;
 
 function decodeCanvas(canvas, context) {
   const imageData = context.getImageData(
@@ -452,7 +809,7 @@ function scanVideo() {
 
     const code = decodeCanvas(scanCanvas, scanContext);
 
-    if (Date.now() < validationCooldownUntil) {
+    if (validationInProgress || Date.now() < validationCooldownUntil) {
       requestAnimationFrame(scanVideo);
       return;
     }
@@ -460,7 +817,11 @@ function scanVideo() {
     if (code && typeof code.data === "string" && code.data.length > 0) {
       if (code.data !== lastVisibleQr) {
         lastVisibleQr = code.data;
-        handleQrResult(code.data);
+        validationInProgress = true;
+        handleQrResult(code.data)
+          .finally(() => {
+            validationInProgress = false;
+          });
       }
     } else {
       lastVisibleQr = null;

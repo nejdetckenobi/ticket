@@ -7,6 +7,9 @@
   <title></title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
+  <script src="google-config.js"></script>
+  <script async defer src="https://accounts.google.com/gsi/client"></script>
+  <script async defer src="https://apis.google.com/js/api.js"></script>
   <script src="library-loader.js"></script>
 </head>
 <body>
@@ -45,6 +48,23 @@
       <span>Validation cooldown (seconds)</span>
       <input type="number" id="cooldown_seconds" min="0" step="1">
     </label>
+    <fieldset id="storageSetting">
+      <legend>Storage</legend>
+      <label>
+        <input type="radio" name="storageType" value="local" checked>
+        Local
+      </label>
+      <label>
+        <input type="radio" name="storageType" value="google">
+        Google
+      </label>
+    </fieldset>
+    <div id="googleStorageSettings" hidden>
+      <button type="button" id="selectGoogleSpreadsheetBtn">
+        Connect Google / Select spreadsheet
+      </button>
+      <div id="googleSpreadsheetStatus"></div>
+    </div>
     <div id="settingsNotice"></div>
     <label id="duplicateSetting">
       <input type="checkbox" id="preventDuplicates">

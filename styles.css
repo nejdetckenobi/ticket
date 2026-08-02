@@ -75,6 +75,39 @@ nav button:nth-child(4) {
   margin-bottom: 0;
 }
 
+#storageSetting {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin: 0 0 12px;
+  border: 1px solid #ccc;
+}
+
+#storageSetting label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+#storageSetting input {
+  width: auto;
+  min-height: auto;
+  margin: 0;
+}
+
+#googleSpreadsheetStatus {
+  min-height: 24px;
+  margin-bottom: 12px;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#googleSpreadsheetStatus.error {
+  color: #c62828;
+}
+
 #duplicateSetting {
   display: flex;
   align-items: center;
@@ -119,6 +152,11 @@ nav button:nth-child(4) {
 }
 
 #result.duplicate {
+  background: #fff8e1;
+  border-color: #f9a825;
+}
+
+#result.warning {
   background: #fff8e1;
   border-color: #f9a825;
 }
