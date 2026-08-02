@@ -14,28 +14,14 @@
 </head>
 <body>
   <nav>
-    <button type="button" data-tab="tab1">Generate</button>
-    <button type="button" data-tab="tab2">Validate</button>
-    <button type="button" data-tab="tab3">Settings</button>
-    <button type="button" data-tab="tab4">History</button>
+    <button type="button" data-tab="tab1">Home</button>
+    <button type="button" data-tab="tab2">Settings</button>
+    <button type="button" data-tab="tab3">Generate</button>
+    <button type="button" data-tab="tab4">Validate</button>
+    <button type="button" data-tab="tab5">History</button>
   </nav>
 
-  <section id="tab1" class="tab-content">
-    <label class="field">
-      <span>Full name</span>
-      <input type="text" id="fullname">
-    </label>
-    <button type="button" id="generateBtn">Generate invitation</button>
-  </section>
-
-  <section id="tab2" class="tab-content">
-    <div id="reader">
-      <video id="qrVideo" playsinline></video>
-    </div>
-    <div id="result"></div>
-  </section>
-
-  <section id="tab3" class="tab-content active">
+  <section id="tab1" class="tab-content active">
     <header id="appIntroduction">
       <h1>TicketToken</h1>
       <p>
@@ -44,6 +30,9 @@
         file that you select.
       </p>
     </header>
+  </section>
+
+  <section id="tab2" class="tab-content">
     <label class="field">
       <span>Key</span>
       <input type="text" id="shared_key">
@@ -89,7 +78,22 @@
     </div>
   </section>
 
+  <section id="tab3" class="tab-content">
+    <label class="field">
+      <span>Full name</span>
+      <input type="text" id="fullname">
+    </label>
+    <button type="button" id="generateBtn">Generate invitation</button>
+  </section>
+
   <section id="tab4" class="tab-content">
+    <div id="reader">
+      <video id="qrVideo" playsinline></video>
+    </div>
+    <div id="result"></div>
+  </section>
+
+  <section id="tab5" class="tab-content">
     <div id="historyList"></div>
     <div id="historyActions">
       <button type="button" id="exportHistoryBtn">Export CSV</button>

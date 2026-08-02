@@ -8,13 +8,13 @@ buttons.forEach((button) => {
     contents.forEach((content) => content.classList.remove("active"));
     document.getElementById(targetTab).classList.add("active");
 
-    if (targetTab === "tab2") {
+    if (targetTab === "tab4") {
       await startCamera();
     } else {
       stopCamera();
     }
 
-    if (targetTab === "tab4") {
+    if (targetTab === "tab5") {
       renderHistory();
     }
   });
