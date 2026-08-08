@@ -62,8 +62,9 @@ function canvasToBlob(canvas, type = "image/png") {
   });
 }
 
-const QR_LOGO_MAX_SIZE = 161;
-const QR_LOGO_PADDING = 8;
+const QR_ARTWORK_SIZE = 177;
+const QR_OUTPUT_SIZE = 800;
+const QART_RENDER_TIMEOUT_MS = 10000;
 const SUPPORTED_LOGO_TYPES = new Set([
   "image/png",
   "image/jpeg",
@@ -82,7 +83,7 @@ function loadImage(source) {
   });
 }
 
-function getContainedImageSize(image, maximumSize = QR_LOGO_MAX_SIZE) {
+function getContainedImageSize(image, maximumSize = QR_ARTWORK_SIZE) {
   if (!image.naturalWidth || !image.naturalHeight) {
     throw new Error("Logo image has invalid dimensions.");
   }
@@ -116,43 +117,112 @@ async function normalizeLogoFile(file) {
     const image = await loadImage(objectUrl);
     const { width, height } = getContainedImageSize(image);
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = QR_ARTWORK_SIZE;
+    canvas.height = QR_ARTWORK_SIZE;
 
     const context = canvas.getContext("2d");
-    drawImageHighQuality(context, image, 0, 0, width, height);
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    drawImageHighQuality(
+      context,
+      image,
+      Math.round((canvas.width - width) / 2),
+      Math.round((canvas.height - height) / 2),
+      width,
+      height
+    );
     return canvas.toDataURL("image/png");
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
 }
 
-async function drawLogoOnQr(canvas, logoDataUrl) {
-  if (!logoDataUrl) return;
+function waitForQartCanvas(container) {
+  return new Promise((resolve, reject) => {
+    const existingCanvas = container.querySelector("canvas");
+    if (existingCanvas) {
+      resolve(existingCanvas);
+      return;
+    }
 
-  const image = await loadImage(logoDataUrl);
-  const { width, height } = getContainedImageSize(image);
-  const backgroundWidth = width + QR_LOGO_PADDING * 2;
-  const backgroundHeight = height + QR_LOGO_PADDING * 2;
-  const backgroundX = Math.round((canvas.width - backgroundWidth) / 2);
-  const backgroundY = Math.round((canvas.height - backgroundHeight) / 2);
+    const observer = new MutationObserver(() => {
+      const canvas = container.querySelector("canvas");
+      if (!canvas) return;
+
+      clearTimeout(timeoutId);
+      observer.disconnect();
+      resolve(canvas);
+    });
+    const timeoutId = setTimeout(() => {
+      observer.disconnect();
+      reject(new Error("Artistic QR rendering timed out."));
+    }, QART_RENDER_TIMEOUT_MS);
+
+    observer.observe(container, { childList: true });
+  });
+}
+
+function upscaleQrCanvas(sourceCanvas) {
+  const canvas = document.createElement("canvas");
+  canvas.width = QR_OUTPUT_SIZE;
+  canvas.height = QR_OUTPUT_SIZE;
+
   const context = canvas.getContext("2d");
-
   context.fillStyle = "#ffffff";
-  context.fillRect(
-    backgroundX,
-    backgroundY,
-    backgroundWidth,
-    backgroundHeight
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.imageSmoothingEnabled = false;
+  const scale = Math.max(
+    1,
+    Math.floor(QR_OUTPUT_SIZE / sourceCanvas.width)
   );
-  drawImageHighQuality(
-    context,
-    image,
-    backgroundX + QR_LOGO_PADDING,
-    backgroundY + QR_LOGO_PADDING,
-    width,
-    height
+  const renderedSize = sourceCanvas.width * scale;
+  const offset = Math.floor((QR_OUTPUT_SIZE - renderedSize) / 2);
+  context.drawImage(
+    sourceCanvas,
+    offset,
+    offset,
+    renderedSize,
+    renderedSize
   );
+  return canvas;
+}
+
+async function createArtisticQrCanvas(value, imagePath) {
+  for (let version = 1; version <= 40; version += 1) {
+    const container = document.createElement("div");
+
+    try {
+      new QArt({
+        value,
+        imagePath,
+        filter: "color",
+        version
+      }).make(container);
+
+      return upscaleQrCanvas(await waitForQartCanvas(container));
+    } catch (error) {
+      // qart.js requires an explicit version. Advance when the signed token
+      // does not fit, while preserving its built-in H error correction.
+      if (/code length overflow/i.test(error.message) && version < 40) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error("Invitation data is too long for a QR code.");
+}
+
+function createStandardQrCanvas(value) {
+  const canvas = document.createElement("canvas");
+  new QRious({
+    element: canvas,
+    value,
+    size: QR_OUTPUT_SIZE,
+    level: "H"
+  });
+  return canvas;
 }
 
 async function generateInvitation() {
@@ -182,15 +252,9 @@ async function generateInvitation() {
   const invitationText = `${signingInput}.${signature}`;
 
   try {
-    const canvas = document.createElement("canvas");
-    new QRious({
-      element: canvas,
-      value: invitationText,
-      size: 800,
-      level: "H"
-    });
-
-    await drawLogoOnQr(canvas, settings.logoDataUrl);
+    const canvas = settings.logoDataUrl
+      ? await createArtisticQrCanvas(invitationText, settings.logoDataUrl)
+      : createStandardQrCanvas(invitationText);
     const blob = await canvasToBlob(canvas);
     const file = new File([blob], "invitation.png", {
       type: "image/png"

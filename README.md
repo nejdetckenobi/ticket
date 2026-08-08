@@ -1,7 +1,7 @@
 # TicketToken
 
 This is a static web application for generating and validating invitation QR
-codes, with an optional locally stored logo embedded in generated QR images.
+codes, with optional locally stored artwork blended into generated QR images.
 Validation history is stored locally by default. It can also append successful
 validations to a user-selected Google Sheets spreadsheet.
 
@@ -54,3 +54,11 @@ development where supported).
 The public privacy policy is available at `/privacy.html`. Keep its statements
 and effective date in sync with any changes to the application's data handling.
 The public Terms of Service are available at `/terms.html`.
+
+## QR libraries
+
+Logo-free QR codes use QRious. When QR artwork is configured, TicketToken uses
+[qart.js 1.1.1](https://github.com/kciter/qart.js) to blend the locally
+processed image into a high-error-correction QR code. qart.js is distributed
+under the [GNU GPL v3](https://github.com/kciter/qart.js/blob/master/LICENSE).
+Both libraries are loaded from jsDelivr at pinned versions.
