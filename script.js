@@ -62,6 +62,99 @@ function canvasToBlob(canvas, type = "image/png") {
   });
 }
 
+const QR_LOGO_MAX_SIZE = 64;
+const QR_LOGO_PADDING = 8;
+const SUPPORTED_LOGO_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp"
+]);
+
+let selectedLogoDataUrl = "";
+let settingsNoticeTimer = null;
+
+function loadImage(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Logo image could not be loaded."));
+    image.src = source;
+  });
+}
+
+function getContainedImageSize(image, maximumSize = QR_LOGO_MAX_SIZE) {
+  if (!image.naturalWidth || !image.naturalHeight) {
+    throw new Error("Logo image has invalid dimensions.");
+  }
+
+  const scale = Math.min(
+    1,
+    maximumSize / image.naturalWidth,
+    maximumSize / image.naturalHeight
+  );
+
+  return {
+    width: Math.max(1, Math.round(image.naturalWidth * scale)),
+    height: Math.max(1, Math.round(image.naturalHeight * scale))
+  };
+}
+
+function drawImageHighQuality(context, image, x, y, width, height) {
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(image, x, y, width, height);
+}
+
+async function normalizeLogoFile(file) {
+  if (!SUPPORTED_LOGO_TYPES.has(file.type)) {
+    throw new Error("Choose a PNG, JPEG or WebP image.");
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await loadImage(objectUrl);
+    const { width, height } = getContainedImageSize(image);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext("2d");
+    drawImageHighQuality(context, image, 0, 0, width, height);
+    return canvas.toDataURL("image/png");
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function drawLogoOnQr(canvas, logoDataUrl) {
+  if (!logoDataUrl) return;
+
+  const image = await loadImage(logoDataUrl);
+  const { width, height } = getContainedImageSize(image);
+  const backgroundWidth = width + QR_LOGO_PADDING * 2;
+  const backgroundHeight = height + QR_LOGO_PADDING * 2;
+  const backgroundX = Math.round((canvas.width - backgroundWidth) / 2);
+  const backgroundY = Math.round((canvas.height - backgroundHeight) / 2);
+  const context = canvas.getContext("2d");
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(
+    backgroundX,
+    backgroundY,
+    backgroundWidth,
+    backgroundHeight
+  );
+  drawImageHighQuality(
+    context,
+    image,
+    backgroundX + QR_LOGO_PADDING,
+    backgroundY + QR_LOGO_PADDING,
+    width,
+    height
+  );
+}
+
 async function generateInvitation() {
   await libraryPromise;
   const settings = getSavedSettings();
@@ -94,9 +187,10 @@ async function generateInvitation() {
       element: canvas,
       value: invitationText,
       size: 800,
-      level: "M"
+      level: "H"
     });
 
+    await drawLogoOnQr(canvas, settings.logoDataUrl);
     const blob = await canvasToBlob(canvas);
     const file = new File([blob], "invitation.png", {
       type: "image/png"
@@ -587,6 +681,63 @@ function getSavedSettings() {
   }
 }
 
+function renderLogoPreview() {
+  const container = document.getElementById("logoPreviewContainer");
+  const preview = document.getElementById("logoPreview");
+  const hasLogo = Boolean(selectedLogoDataUrl);
+
+  container.hidden = !hasLogo;
+  if (hasLogo) {
+    preview.src = selectedLogoDataUrl;
+  } else {
+    preview.removeAttribute("src");
+  }
+}
+
+function setSelectedLogo(logoDataUrl) {
+  selectedLogoDataUrl = logoDataUrl || "";
+  document.getElementById("logoFile").value = "";
+  renderLogoPreview();
+}
+
+function showSettingsNotice(message, clearAfter = 0) {
+  const notice = document.getElementById("settingsNotice");
+
+  if (settingsNoticeTimer) {
+    clearTimeout(settingsNoticeTimer);
+    settingsNoticeTimer = null;
+  }
+
+  notice.textContent = message;
+  if (clearAfter > 0) {
+    settingsNoticeTimer = setTimeout(() => {
+      notice.textContent = "";
+      settingsNoticeTimer = null;
+    }, clearAfter);
+  }
+}
+
+async function handleLogoFileChange(event) {
+  const input = event.currentTarget;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  try {
+    const logoDataUrl = await normalizeLogoFile(file);
+    setSelectedLogo(logoDataUrl);
+    showSettingsNotice("Logo ready. Save settings to keep it.");
+  } catch (error) {
+    showSettingsNotice(error.message);
+  } finally {
+    input.value = "";
+  }
+}
+
+function removeLogo() {
+  setSelectedLogo("");
+  showSettingsNotice("Logo removed. Save settings to apply.");
+}
+
 function loadSettings() {
   const settings = getSavedSettings();
   document.getElementById("shared_key").value = settings.key || "";
@@ -599,6 +750,7 @@ function loadSettings() {
     Boolean(settings.preventDuplicates);
   document.getElementById("darkMode").checked = Boolean(settings.darkMode);
   window.applyTicketTokenTheme(Boolean(settings.darkMode));
+  setSelectedLogo(settings.logoDataUrl);
   const storageType = settings.storageType === "google" ? "google" : "local";
   document.querySelector(
     `input[name="storageType"][value="${storageType}"]`
@@ -660,18 +812,14 @@ function saveSettings() {
       cooldownSeconds,
       preventDuplicates,
       darkMode,
+      logoDataUrl: selectedLogoDataUrl,
       storageType,
       googleSpreadsheetId: savedSettings.googleSpreadsheetId || "",
       googleSpreadsheetName: savedSettings.googleSpreadsheetName || ""
     })
   );
 
-  const notice = document.getElementById("settingsNotice");
-  notice.textContent = "Saved";
-
-  setTimeout(() => {
-    notice.textContent = "";
-  }, 2000);
+  showSettingsNotice("Saved", 2000);
 }
 
 function clearSettings() {
@@ -685,6 +833,7 @@ function clearSettings() {
   document.getElementById("cooldown_seconds").value = "5";
   document.getElementById("preventDuplicates").checked = false;
   document.getElementById("darkMode").checked = false;
+  setSelectedLogo("");
   window.applyTicketTokenTheme(false);
   document.querySelector(
     'input[name="storageType"][value="local"]'
@@ -692,7 +841,7 @@ function clearSettings() {
   googleAccessToken = null;
   googleAccessTokenExpiresAt = 0;
   updateGoogleStorageUi();
-  document.getElementById("settingsNotice").textContent = "";
+  showSettingsNotice("");
 }
 
 document.getElementById("saveSettingsBtn")
@@ -708,6 +857,12 @@ document.getElementById("darkMode")
   .addEventListener("change", (event) => {
     window.applyTicketTokenTheme(event.target.checked);
   });
+
+document.getElementById("logoFile")
+  .addEventListener("change", handleLogoFileChange);
+
+document.getElementById("removeLogoBtn")
+  .addEventListener("click", removeLogo);
 
 document.getElementById("selectGoogleSpreadsheetBtn")
   .addEventListener("click", selectGoogleSpreadsheet);

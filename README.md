@@ -1,8 +1,9 @@
 # TicketToken
 
 This is a static web application for generating and validating invitation QR
-codes. Validation history is stored locally by default. It can also append
-successful validations to a user-selected Google Sheets spreadsheet.
+codes, with an optional locally stored logo embedded in generated QR images.
+Validation history is stored locally by default. It can also append successful
+validations to a user-selected Google Sheets spreadsheet.
 
 ## Google Sheets setup
 

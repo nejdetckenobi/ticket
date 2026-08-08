@@ -11,7 +11,7 @@
 <body class="legal-page">
   <main>
     <h1>Privacy Policy</h1>
-    <p><strong>Effective date:</strong> August 3, 2026</p>
+    <p><strong>Effective date:</strong> August 8, 2026</p>
 
     <p>
       TicketToken (the “Application”) creates and validates invitation
@@ -41,12 +41,17 @@
         Camera frames used to detect QR codes. Frames are processed locally in
         the browser and are not uploaded or retained by the Application.
       </li>
+      <li>
+        An optional logo selected by the user for placement in generated QR
+        images. The logo is resized and stored locally on the user’s device.
+      </li>
     </ul>
 
     <h2>How information is used</h2>
     <p>Information is used only to:</p>
     <ul>
       <li>Create signed invitation QR codes.</li>
+      <li>Add the user-selected logo to the center of generated QR images.</li>
       <li>Verify that scanned invitations have a valid signature.</li>
       <li>Display and export validation history on the user’s device.</li>
       <li>Prevent duplicate validation when that option is enabled.</li>
@@ -58,11 +63,18 @@
 
     <h2>Local storage</h2>
     <p>
-      By default, settings and validation history are stored in the browser’s
-      local storage on the user’s device. The Application does not operate its
-      own server-side database. Local information remains until the user clears
-      settings or history in the Application, clears browser storage, or
-      removes the Application’s site data.
+      By default, settings, the normalized optional logo, and validation history
+      are stored in the browser’s local storage on the user’s device. The
+      Application does not operate its own server-side database. Local
+      information remains until the user clears settings or history in the
+      Application, clears browser storage, or removes the Application’s site
+      data.
+    </p>
+    <p>
+      Logo decoding, resizing, format conversion, and placement are performed
+      entirely in the user’s browser using local browser image and canvas APIs.
+      The logo is not uploaded to the Developer or to a third-party image
+      processing service.
     </p>
 
     <h2>Google Drive and Google Sheets access</h2>

@@ -43,6 +43,18 @@
       <input type="text" id="event_name">
     </label>
     <label class="field">
+      <span>QR logo (PNG, JPEG or WebP; maximum 64×64)</span>
+      <input
+        type="file"
+        id="logoFile"
+        accept="image/png,image/jpeg,image/webp"
+      >
+    </label>
+    <div id="logoPreviewContainer" hidden>
+      <img id="logoPreview" alt="Selected QR logo preview">
+      <button type="button" id="removeLogoBtn">Remove logo</button>
+    </div>
+    <label class="field">
       <span>Validation cooldown (seconds)</span>
       <input type="number" id="cooldown_seconds" min="0" step="1">
     </label>

@@ -107,6 +107,23 @@ nav button {
   margin-bottom: 0;
 }
 
+#logoPreviewContainer {
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+#logoPreview {
+  display: block;
+  box-sizing: content-box;
+  max-width: 64px;
+  max-height: 64px;
+  margin: 0 auto 12px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  object-fit: contain;
+}
+
 #appIntroduction {
   max-width: 640px;
   margin: 0 auto 24px;
