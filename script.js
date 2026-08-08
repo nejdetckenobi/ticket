@@ -62,7 +62,7 @@ function canvasToBlob(canvas, type = "image/png") {
   });
 }
 
-const QR_LOGO_MAX_SIZE = 64;
+const QR_LOGO_MAX_SIZE = 160;
 const QR_LOGO_PADDING = 8;
 const SUPPORTED_LOGO_TYPES = new Set([
   "image/png",
