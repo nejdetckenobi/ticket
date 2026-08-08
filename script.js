@@ -203,7 +203,10 @@ async function createArtisticQrCanvas(value, imagePath) {
     } catch (error) {
       // qart.js requires an explicit version. Advance when the signed token
       // does not fit, while preserving its built-in H error correction.
-      if (/code length overflow/i.test(error.message) && version < 40) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
+      if (/code length overflow/i.test(errorMessage) && version < 40) {
         continue;
       }
 
