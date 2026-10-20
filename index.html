@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <title>TicketToken</title>
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" referrerpolicy="no-referrer">
   <script src="theme-loader.js"></script>
   <link rel="stylesheet" href="styles.css">
   <script src="google-config.js"></script>
@@ -14,12 +15,12 @@
   <script src="library-loader.js"></script>
 </head>
 <body>
-  <nav>
-    <button type="button" data-tab="tab1">Home</button>
-    <button type="button" data-tab="tab2">Settings</button>
-    <button type="button" data-tab="tab3">Generate</button>
-    <button type="button" data-tab="tab4">Validate</button>
-    <button type="button" data-tab="tab5">History</button>
+  <nav aria-label="Primary navigation">
+    <button type="button" data-tab="tab1" aria-label="Home" aria-current="page" title="Home"><i class="fa-solid fa-house" aria-hidden="true"></i></button>
+    <button type="button" data-tab="tab2" aria-label="Settings" title="Settings"><i class="fa-solid fa-gear" aria-hidden="true"></i></button>
+    <button type="button" data-tab="tab3" aria-label="Generate invitation" title="Generate invitation"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></button>
+    <button type="button" data-tab="tab4" aria-label="Validate ticket" title="Validate ticket"><i class="fa-solid fa-qrcode" aria-hidden="true"></i></button>
+    <button type="button" data-tab="tab5" aria-label="History" title="History"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></button>
   </nav>
 
   <section id="tab1" class="tab-content active">
