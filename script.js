@@ -7,6 +7,8 @@ buttons.forEach((button) => {
 
     contents.forEach((content) => content.classList.remove("active"));
     document.getElementById(targetTab).classList.add("active");
+    buttons.forEach((tabButton) => tabButton.removeAttribute("aria-current"));
+    button.setAttribute("aria-current", "page");
 
     if (targetTab === "tab4") {
       await startCamera();

@@ -384,6 +384,8 @@ nav {
 
 nav button {
   flex: 1;
+  display: grid;
+  place-items: center;
   width: auto;
   min-height: 42px;
   padding: 9px 8px;
@@ -393,6 +395,18 @@ nav button {
   border-radius: 12px 12px 0 0;
   cursor: pointer;
   transition: color .2s ease, background .2s ease, border-color .2s ease;
+}
+
+nav button i {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+nav button[aria-current="page"] {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 32%, transparent);
 }
 
 nav button:hover,
@@ -545,7 +559,10 @@ nav button:focus-visible {
   nav button {
     padding: 8px 3px;
     border-radius: 9px 9px 0 0;
-    font-size: 11px;
+  }
+
+  nav button i {
+    font-size: 1.15rem;
   }
 
   .tab-content {
