@@ -319,10 +319,13 @@ nav button {
 
 #tab2 {
   position: relative;
-  padding-bottom: 124px;
+  padding-bottom: 96px;
 }
 
 #settingsActions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
   position: fixed;
   left: 16px;
   right: 16px;
@@ -339,6 +342,20 @@ nav button {
 
 #tab5.active {
   display: block;
+}
+
+#settingsActions button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 0;
+  font-size: 1.3rem;
+}
+
+#settingsActions button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
 }
 
 #historyList {
